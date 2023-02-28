@@ -30,9 +30,5 @@ export const connectAsConsumer = async (
   handler: IHandler,
 ) => {
   const cbObRestart = reInitOnRestart(queues, handler);
-
-  const broker = await connectionProvider(connectOptions, queues, cbObRestart);
-
-  // first init is manual
-  await cbObRestart(broker);
+  await connectionProvider(connectOptions, queues, cbObRestart);
 };

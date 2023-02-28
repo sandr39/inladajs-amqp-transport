@@ -2,12 +2,6 @@ import { ITransactionService, ITransactionProcessor } from 'inlada-transaction-p
 import amqplib from 'amqplib';
 import { connectionProvider, IAmqpBroker, IQueueParam } from './connect';
 
-export interface ITelegramMessage {
-  messageType: string, /// add type
-  telegramUserId?: number,
-  message: string
-}
-
 const WAIT_DRAIN_EVENT = 200;
 const delay = (ms: number) => new Promise(res => { setTimeout(res, ms); });
 
@@ -17,14 +11,14 @@ export interface IAMQPProducerData {
 }
 
 export interface IAMQPProducer extends IAMQPProducerData{
-  send: (uid: string, o: ITelegramMessage) => void;
+  send: (uid: string, objectToSend: any) => void;
 }
 
 let amqpProducerData: IAMQPProducerData;
 
-const bufferToSend: Record<string, Record<string, ITelegramMessage[]>> = {};
+const bufferToSend: Record<string, Record<string, any[]>> = {};
 
-const notify = async (objectToSend: ITelegramMessage, queue: string) => {
+const notify = async (objectToSend: any, queue: string) => {
   let sent = amqpProducerData.broker.channel?.sendToQueue(queue, Buffer.from(JSON.stringify(objectToSend)));
   while (!sent) {
     await delay(WAIT_DRAIN_EVENT);
@@ -32,7 +26,7 @@ const notify = async (objectToSend: ITelegramMessage, queue: string) => {
   }
 };
 
-const sendAll = async (toSend: ITelegramMessage[], queue: string) => {
+const sendAll = async (toSend: any[], queue: string) => {
   const messagesToSend = toSend || [];
 
   if (messagesToSend.length) {
@@ -46,7 +40,7 @@ const sendAll = async (toSend: ITelegramMessage[], queue: string) => {
   }
 };
 
-const cleanupAll = async (toSend: Record<string, ITelegramMessage[]>, uid: string) => {
+const cleanupAll = async (toSend: Record<string, any[]>, uid: string) => {
   if (toSend[uid]?.length) {
     // eslint-disable-next-line no-param-reassign
     toSend[uid].length = 0;
@@ -54,7 +48,7 @@ const cleanupAll = async (toSend: Record<string, ITelegramMessage[]>, uid: strin
 };
 
 export const getProducer = async (
-  connectOptions: amqplib.Options.Connect,
+  connectOptions: amqplib.Options.Connect | null,
   queue: IQueueParam,
   cleanOnFail = true,
   transactionProcessor: ITransactionProcessor,

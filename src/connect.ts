@@ -37,6 +37,7 @@ const myName = '123'; // serviceName + uid();
 const initConnection = async (cbOnRestart?: IInitCBType) => {
   try {
     const effectiveOptions: amqplib.Options.Connect = { ...defaultOptions, ...savedOptions };
+    console.log('init connection');
     messageBroker.connection = await amqplib.connect(effectiveOptions, { clientProperties: { connection_name: myName } });
     messageBroker.channel = await messageBroker.connection.createChannel();
 
@@ -58,23 +59,18 @@ const initConnection = async (cbOnRestart?: IInitCBType) => {
     //   promiseResolve = resolve;
     // });
 
-    await cbOnRestart?.(messageBroker);
-
     // messageBroker.connection.on('connect', async () => {
     //   await cbOnRestart?.(messageBroker);
     //
     //   promiseResolve(messageBroker);
     //   logger.debug(null, 'message broker client connected');
     // });
+    messageBroker.queues?.forEach(q => messageBroker.channel?.assertQueue(q.name, q.options));
+
+    await cbOnRestart?.(messageBroker); // after assertQueue
   } catch (e) {
     console.log(null, 'Error on init ', e);
     await initConnection(cbOnRestart);
-  }
-
-  try {
-    messageBroker.queues?.forEach(q => messageBroker.channel?.assertQueue(q.name, q.options));
-  } catch (ex) {
-    console.log(null, 'Error in assertQueue in amqp initConnection');
   }
 
   return messageBroker;
@@ -82,7 +78,7 @@ const initConnection = async (cbOnRestart?: IInitCBType) => {
 
 // todo redo, quite ugly
 export const connectionProvider = async (
-  connectionOptions: amqplib.Options.Connect,
+  connectionOptions: amqplib.Options.Connect | null,
   queues: IQueueParam[],
   cbOnRestart?: IInitCBType,
 ): Promise<any> => {
