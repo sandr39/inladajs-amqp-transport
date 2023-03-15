@@ -34,13 +34,25 @@ const messageBroker: IAmqpBroker = { queues: [] };
 
 const myName = '123'; // serviceName + uid();
 
+const safeFn = async (fn: (() => Promise<any>) | undefined) => {
+  try {
+    await fn?.();
+  } catch (e) {}
+};
+
 const initConnection = async (cbOnRestart?: IInitCBType) => {
   try {
     const effectiveOptions: amqplib.Options.Connect = { ...defaultOptions, ...savedOptions };
     console.log('init connection');
+
+    await safeFn(messageBroker.channel?.close);
+    await safeFn(messageBroker.connection?.close);
+
     messageBroker.connection = await amqplib.connect(effectiveOptions, { clientProperties: { connection_name: myName } });
     messageBroker.channel = await messageBroker.connection.createChannel();
 
+    // this is important
+    // if prefetch more, there are problems on reconnect - several reconnection break further logic
     await messageBroker.channel.prefetch(1);
 
     messageBroker.connection.on('error', async err => {
@@ -49,22 +61,10 @@ const initConnection = async (cbOnRestart?: IInitCBType) => {
     });
 
     messageBroker.channel.on('error', async err => {
-    // check reconnect on any error (ECONNRESET too)
       logger.error(null, 'message broker client error, channel', err);
       await initConnection(cbOnRestart);
     });
 
-    // let promiseResolve: (v: IAmqpBroker) => void;
-    // resultPromise = new Promise(resolve => {
-    //   promiseResolve = resolve;
-    // });
-
-    // messageBroker.connection.on('connect', async () => {
-    //   await cbOnRestart?.(messageBroker);
-    //
-    //   promiseResolve(messageBroker);
-    //   logger.debug(null, 'message broker client connected');
-    // });
     messageBroker.queues?.forEach(q => messageBroker.channel?.assertQueue(q.name, q.options));
 
     await cbOnRestart?.(messageBroker); // after assertQueue

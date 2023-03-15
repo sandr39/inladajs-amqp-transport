@@ -1,6 +1,6 @@
 {
   "name": "inladajs-amqp-transport",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "description": "Simple transaction-based wrapper for amqplib package, used in inladajs as transport",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
